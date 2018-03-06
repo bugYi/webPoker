@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link rel="stylesheet" type="text/css" href="css/public.css" />
+<title>WebScoketAPI</title>
+</head>
+<body>
+<div>用户：<span id="userName"></span></div>
+<div>房间号：<span id="roomCode"></span></div>
+<button id="conBtn" onclick="connect()">连接</button>
+<button onclick="send()">发送</button>
+<button onclick="closeWebSocket()">退出</button>
+<button onclick="closeRoom()">退出房间</button>
+<button id="readyBtn" onclick="toReady()">准备</button>
+<br>
+<textarea id='text'></textarea>
+<hr/>
+<div id="mainPoker">
+	<div id="poker54"></div>
+	<div id="poker53"></div>
+	<div id="pokerD2"></div>
+	<div id="pokerC2"></div>
+	<div id="pokerB2"></div>
+	<div id="pokerA2"></div>
+	<div id="pokerD1"></div>
+	<div id="pokerC1"></div>
+	<div id="pokerB1"></div>
+	<div id="pokerA1"></div>
+	<div id="pokerD13"></div>
+	<div id="pokerC13"></div>
+	<div id="pokerB13"></div>
+	<div id="pokerA13"></div>
+	<div id="pokerD12"></div>
+	<div id="pokerC12"></div>
+	<div id="pokerB12"></div>
+	<div id="pokerA12"></div>
+	<div id="pokerD11"></div>
+	<div id="pokerC11"></div>
+	<div id="pokerB11"></div>
+	<div id="pokerA11"></div>
+	<div id="pokerD10"></div>
+	<div id="pokerC10"></div>
+	<div id="pokerB10"></div>
+	<div id="pokerA10"></div>
+	<div id="pokerD9"></div>
+	<div id="pokerC9"></div>
+	<div id="pokerB9"></div>
+	<div id="pokerA9"></div>
+	<div id="pokerD8"></div>
+	<div id="pokerC8"></div>
+	<div id="pokerB8"></div>
+	<div id="pokerA8"></div>
+	<div id="pokerD7"></div>
+	<div id="pokerC7"></div>
+	<div id="pokerB7"></div>
+	<div id="pokerA7"></div>
+	<div id="pokerD6"></div>
+	<div id="pokerC6"></div>
+	<div id="pokerB6"></div>
+	<div id="pokerA6"></div>
+	<div id="pokerD5"></div>
+	<div id="pokerC5"></div>
+	<div id="pokerB5"></div>
+	<div id="pokerA5"></div>
+	<div id="pokerD4"></div>
+	<div id="pokerC4"></div>
+	<div id="pokerB4"></div>
+	<div id="pokerA4"></div>
+	<div id="pokerD3"></div>
+	<div id="pokerC3"></div>
+	<div id="pokerB3"></div>
+	<div id="pokerA3"></div>
+	
+	<br/><br/>
+	<div id="pokerUn1"></div>
+	<div id="pokerUn2"></div>
+	<div id="pokerUn3"></div>
+</div>
+<div id="message"></div>
+</body>
+<script type="text/javascript" src="js/jquery.min.js"></script>
+<script type="text/javascript">
+$("#readyBtn").hide();
+var userName = localStorage.getItem("userName");
+var roomCode = localStorage.getItem("roomCode");
+if(userName == null || userName == "" || roomCode == null || roomCode == ""){
+	location.href = "login.html";
+}
+
+$("#userName").html(userName);
+$("#roomCode").html(roomCode);
+
+var last_health;
+var health_timeout = 10;
+//心跳包
+function keepalive(ws) {
+    var time = new Date();
+    if (last_health != -1 && (time.getTime() - last_health > health_timeout)) {
+
+        // ws.close();
+    } else {
+        if (ws.bufferedAmount == 0) {
+            ws.send('@heart');
+        }
+    }
+}
+
+var url = window.document.location.href;
+url = "ws://"+url.substring(url.indexOf('://')+3, url.substr(1).lastIndexOf('/')+1)+"/websocket";
+
+    var websocket = null;
+    //判断当前浏览器是否支持WebSocket
+    
+    function connect(){
+    	if(null != userName && "" != userName){
+    		if ('WebSocket' in window) {
+                websocket = new WebSocket(url); //"ws://localhost:8080/webPoker/websocket"
+            }else {
+                alert('当前浏览器 Not support websocket')
+            }	
+    		
+    		//连接发生错误的回调方法
+    	    websocket.onerror = function () {
+    	        setMessageInnerHTML("WebSocket连接发生错误");
+    	    };
+
+    	    //连接成功建立的回调方法
+    	    websocket.onopen = function () {
+    	        setMessageInnerHTML("连接成功");
+    	        $("#conBtn").hide();
+    	        $("#readyBtn").show();
+    	        console.log('已连接');
+                websocket.send("online"+userName);
+                heartbeat_timer = setInterval(function() {
+                    keepalive(websocket)
+                }, 60000);
+    	    }
+
+    	    //接收到消息的回调方法
+    	    websocket.onmessage = function (event) {
+    	        setMessageInnerHTML(event.data);
+    	        
+    	        //取收到的消息，判断是否为系统分发，如果是系统分发则判断是否符合规则
+    	        var arr = new Array();
+    	        arr = event.data.split('-');
+    	        displayPoker(arr);
+    	    }
+
+    	    //连接关闭的回调方法
+    	    websocket.onclose = function () {
+    	        //localStorage.clear();
+        		$("#conBtn").show();
+    	        setMessageInnerHTML("WebSocket连接关闭");
+    	    }
+
+    	    //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+    	    window.onbeforeunload = function () {
+    	        closeWebSocket();
+    	    }
+    	}else{
+    		alert('用户名不能为空！');
+    	}
+    }
+
+    //将消息显示在网页上
+    function setMessageInnerHTML(innerHTML) {
+        document.getElementById('message').innerHTML += innerHTML + '<br/>';
+    }
+
+    //关闭WebSocket连接
+    function closeWebSocket() {
+        websocket.close();
+        //localStorage.clear();
+        $("#conBtn").show();
+        $("#readyBtn").hide();
+    }
+
+    //发送消息
+    function send() {
+        var message = document.getElementById('text').value;
+        websocket.send(message);
+    }
+    
+    //退出房间
+    function closeRoom(){
+    	localStorage.setItem("roomCode", "");
+    	location.reload();
+    }
+    
+    //准备
+    function toReady(){
+    	$.ajax({
+    		url:'/webPoker/toReady',
+    		type:'post',
+    		data:'',
+    		success:function(data){
+    			if("0000" == data.msgCode){
+    				setMessageInnerHTML("准备"+data.msg);
+    				$("#readyBtn").hide();
+    			}
+    		}
+    	});
+    }    
+    
+    
+    //根据接收到的消息内容判断是否为系统发牌，如果是则显示牌面
+    function displayPoker(arr){
+    	//符合规则就取消息内容（牌面）
+        if(arr[0] == "@100pokers"){
+        	var poker = new Array();
+        	poker = arr[1].split(',');
+
+        	for(var i=0; i<poker.length; i++){
+        		for(var j=i+1; j<poker.length; j++){
+	        		var temp = 0;
+        			if(parseInt(poker[i]) < parseInt(poker[j])){
+	        			temp = poker[j];
+	        			poker[j] = poker[i];
+	        			poker[i] = temp;
+	        		}
+        		}
+        	}
+        	
+        	//发牌前先清理桌面
+        	$("#mainPoker").children().removeAttr("class");
+        	for(var i=0; i<poker.length; i++){
+        		if(poker[i] < 53){
+        			var x = poker[i]/13;
+    	        	if(x > 0 && x <= 1){
+    	        		x = 'A';
+    	        	}
+    				if(x > 1 && x <= 2){
+    					x = 'B';   		
+    				}
+    				if(x > 2 && x <= 3){
+    					x = 'C';
+    				}
+    				if(x > 3 && x <= 4){
+    					x = 'D';
+    				}
+    	        	var y = parseInt(poker[i] % 13);
+    	        	if( y == 0 ){
+    	        		y = 13;
+    	        	}
+    	        	//console.log(poker[i]+"x:"+x+" y:"+y+" x+y:"+x+y);
+    	        	$("#poker"+x+y).attr("class", "weizhi poker"+x+y);	
+        		}else{
+        			$("#poker"+poker[i]).attr("class", "weizhi poker"+poker[i]);	
+        		}
+        		
+        	}
+        	
+        }else if(arr[0] == "@100pokersUn"){
+        	var poker = new Array();
+        	poker = arr[1].split(',');
+        	
+        	for(var i=0; i<poker.length; i++){
+        		if(poker[i] < 53){
+        			var x = poker[i]/13;
+    	        	if(x > 0 && x <= 1){
+    	        		x = 'A';
+    	        	}
+    				if(x > 1 && x <= 2){
+    					x = 'B';   		
+    				}
+    				if(x > 2 && x <= 3){
+    					x = 'C';
+    				}
+    				if(x > 3 && x <= 4){
+    					x = 'D';
+    				}
+    	        	var y = parseInt(poker[i] % 13);
+    	        	if( y == 0 ){
+    	        		y = 13;
+    	        	}
+    	        	//console.log(poker[i]+"x:"+x+" y:"+y+" x+y:"+x+y);
+    	        	$("#pokerUn"+(i+1)).attr("class", "weizhi poker"+x+y);	
+        		}else{
+        			$("#pokerUn"+(i+1)).attr("class", "weizhi poker"+poker[i]);	
+        		}
+        		
+        	}
+        }
+    }
+    
+$(function() {	
+	//判断是否登录了
+	$.ajax({
+		url:'/webPoker/queryUserName',
+		type:'post',
+		data:'',
+		success:function(data){
+			if("" == data || null == data){
+				localStorage.setItem("userName","");
+				location.href = "login.html";
+			}
+		}
+	});
+	
+	$.ajax({
+		url:'/webPoker/queryRoomCode',
+		type:'post',
+		data:'',
+		success:function(data){
+			if("" == data || null == data){
+				localStorage.setItem("roomCode","");
+				location.href = "login.html";
+			}
+		}
+	});
+});     
+</script>
+</html>
