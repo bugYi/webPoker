@@ -12,18 +12,27 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.web.poker.common.constants.Constants;
+import com.web.poker.common.constants.MsgCode;
 import com.web.poker.common.utils.Exec;
 import com.web.poker.common.utils.StringUtils;
+import com.web.poker.common.utils.UserInfoUtil;
+import com.web.poker.model.Poker;
 import com.web.poker.result.BaseResult;
 
 @Controller
 public class RoomController {
+	
+	static final Logger logger = LoggerFactory.getLogger(RoomController.class);
+	
 	@Autowired
 	HttpServletRequest request;
 	
@@ -31,7 +40,6 @@ public class RoomController {
 	HttpServletResponse response;
 	
 	private ConcurrentHashMap<String, List<String>> roomMap = new ConcurrentHashMap<String,List<String>>();
-	
 	
 	/**
 	 * 异步获取房间号
@@ -44,12 +52,13 @@ public class RoomController {
 		String roomCode = "";
 		List<String> list = new ArrayList<String>();
 		
-		String userId = (String) request.getSession().getAttribute("webSocketSessionId");
-		if(StringUtils.isEmpty(userId)){
+		String token = (String) request.getSession().getAttribute(Constants.SESSION_ATRR_KEY);
+		Poker poker = UserInfoUtil.getUser(token);
+		if(null == poker){
 			result.put("msg", "请先登录");
 			return result;	
 		}
-		list.add(userId);
+		list.add(token);
 		
 		if(roomMap.isEmpty()){//当没有房间的时候随机创建一个
 			roomCode = ((int) ((Math.random()*9+1)*100000))+"";
@@ -70,44 +79,22 @@ public class RoomController {
 			}
 		}
 		roomMap.put(roomCode, list);
-		request.getSession().setAttribute("roomCode", roomCode);
+		poker.setRoomCode(roomCode);
+		try {
+			UserInfoUtil.setUser(token, poker);
+		} catch (Exception e) {
+			//Socket read timed out
+			if(e.getMessage().contains("Socket read timed out") || e.getMessage().contains("timed out") ||
+					e.getMessage().contains("Socket") ||
+					e.getMessage().contains("Connection") || e.getMessage().contains("IO")){
+				result.put("msg", "获取房间号失败，网络异常!请稍后再试!谢谢!");
+			}else{
+				result.put("msg", "获取房间号失败!"+e.getMessage());
+			}
+			return result;	
+		}
 		result.put("roomCode", roomCode);
 		return result;
-	}
-	
-	
-	@RequestMapping("/getRoomCode")
-	public String getRoomCode(){
-		String roomCode = "";
-		List<String> list = new ArrayList<String>();
-		String userId = (String) request.getSession().getAttribute("webSocketSessionId");
-		if(StringUtils.isEmpty(userId)){
-			request.setAttribute("msg", "请先登录");
-			return "login";	
-		}
-		list.add(userId);
-		
-		if(roomMap.isEmpty()){//当没有房间的时候随机创建一个
-			roomCode = ((int) ((Math.random()*9+1)*100000))+"";
-		}else{//如果存在房间则需要判断房间号是否重复
-			boolean flag = true;//是否找到房间号
-			while(flag){
-				roomCode = ((int) ((Math.random()*9+1)*100000))+"";
-				Enumeration<String> enu = roomMap.keys();//取map中所有房间号
-				while (enu.hasMoreElements()) {
-					String rooms = (String) enu.nextElement();
-					if(roomCode.equals(rooms)){//如果房间号存在则跳出循环
-						flag = true;
-						break;
-					}else{
-						flag = false;
-					}
-				}
-			}
-		}
-		roomMap.put(roomCode, list);
-		request.getSession().setAttribute("roomCode", roomCode);
-		return "webSocket";	
 	}
 	
 	/**
@@ -146,38 +133,6 @@ public class RoomController {
 		}else{//否则回到输房间号页面
 			result.put("msg", "房间号不正确");
 			return result;	
-		}
-		
-	}
-	
-	@RequestMapping("/putRoomCode")
-	public String putRoomCode(String roomCode){
-		boolean flag = false;//是否找到房间号
-		Enumeration<String> enu = roomMap.keys();//取map中所有房间号
-		while (enu.hasMoreElements()) {
-			String rooms = (String) enu.nextElement();
-			if(roomCode.equals(rooms)){//如果房间号存在则跳出循环
-				flag = true;
-				break;
-			}else{
-				flag = false;
-			}
-		}
-		
-		if(flag){//找到房间号，则进入房间并跳转连接接页面
-			String userId = (String) request.getSession().getAttribute("webSocketSessionId");
-			if(StringUtils.isEmpty(userId)){
-				request.setAttribute("msg", "请先登录");
-				return "login";	
-			}
-			List<String> list = roomMap.get(roomCode);
-			list.add(userId);
-			roomMap.put(roomCode, list);
-			request.getSession().setAttribute("roomCode", roomCode);
-			return "webSocket";	
-		}else{//否则回到输房间号页面
-			request.setAttribute("msg", "房间号不正确");
-			return "login";	
 		}
 		
 	}

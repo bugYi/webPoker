@@ -6,7 +6,7 @@ import java.util.List;
  * Poker对象
  * token : 身份确认唯一标识
  * nick : 昵称
- * telnum : 手机号
+ * telNum : 手机号
  * roomCode : 房间号
  * readyState : 准备标识
  * pokerList : 手牌列表
@@ -24,7 +24,7 @@ public class Poker {
 	// 昵称
 	private String nick;
 	// 手机号
-	private String telnum; 
+	private String telNum; 
 	// 房间号
 	private String roomCode;
 	// 准备标识
@@ -50,11 +50,11 @@ public class Poker {
 	public void setNick(String nick) {
 		this.nick = nick;
 	}
-	public String getTelnum() {
-		return telnum;
+	public String getTelNum() {
+		return telNum;
 	}
-	public void setTelnum(String telnum) {
-		this.telnum = telnum;
+	public void setTelNum(String telNum) {
+		this.telNum = telNum;
 	}
 	public String getRoomCode() {
 		return roomCode;

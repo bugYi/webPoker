@@ -69,14 +69,14 @@ public class UserInfoUtil {
 	 * @param key
 	 * @param user
 	 */
-	public static void setTokenAndUserId(String userid ,String token) throws Exception{
+	public static void setTokenByUserId(String userid ,String token) throws Exception{
 		String r = JedisUtils.set(userid, token, KEY_TIMEOUT);
 		if(r == null){
 			throw new Exception("缓存失败，请检查redis相关.");
 		}
 	}
 	
-	public static String getTokenAndUserId(String userid) {
+	public static String getTokenByUserId(String userid) {
 		return JedisUtils.get(String.valueOf(userid));
 	}
 	

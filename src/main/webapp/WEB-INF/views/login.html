@@ -12,13 +12,13 @@ function toLogin(){
 		type:'post',
 		data:$('#login').serialize(),
 		success:function(data){
-			if("" == data || null == data){
+			if("9999" == data.msgCode){
 				$("#login").show();
 				$("#getRoom").hide();
 				$("#putRoom").hide();
 			}else{	
-				$("#userName").html(data);
-				localStorage.setItem("userName", data);
+				$("#userName").html(data.msg);
+				localStorage.setItem("userName", data.msg);
 				$("#login").hide();
 				$("#getRoom").show();
 				$("#putRoom").show();
