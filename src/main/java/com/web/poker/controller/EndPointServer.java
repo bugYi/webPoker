@@ -14,7 +14,10 @@ import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
+import com.web.poker.common.constants.Constants;
+import com.web.poker.common.utils.UserInfoUtil;
 import com.web.poker.configurator.GetHttpSessionConfigurator;
+import com.web.poker.model.Poker;
 
 
 @ServerEndpoint(value="/websocket",configurator=GetHttpSessionConfigurator.class)
@@ -24,44 +27,54 @@ public class EndPointServer {
 
 	public static ConcurrentHashMap<String, EndPointServer> sessionMap = new ConcurrentHashMap<String, EndPointServer>();
 	
-	public String userName;
+	public String key;
     public Session  session ;
     public HttpSession httpSession;
 
      @OnOpen
      public void onOpen(Session session,EndpointConfig config) throws IOException {
          HttpSession httpSession= (HttpSession) config.getUserProperties().get(HttpSession.class.getName());
-    	 userName = (String) httpSession.getAttribute("webSocketSessionId");
-         if(userName != null){
-        	 httpSession.setAttribute("sessionId", session.getId());
-             this.session = session;
-             this.httpSession = httpSession;
-             sessionMap.put(userName+"-"+session.getId(), this);
-         }else{
-             //用户未登陆
+         String token = (String) httpSession.getAttribute(Constants.SESSION_ATRR_KEY);
+		 Poker poker = UserInfoUtil.getUser(token);
+		 if(null == poker){
+			//用户未登陆
              try {
                  session.close();
              } catch (IOException e) {
                  e.printStackTrace();
              }
+		 }else{
+			 key = poker.getKey();
+        	 poker.setSessionId(session.getId());
+        	 try {
+				UserInfoUtil.setUser(token, poker);
+			 } catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			 }
+			 this.session = session;
+             this.httpSession = httpSession;
+             sessionMap.put(key, this);
          }
     }
 
      @OnMessage
      public void onMessage(Session session,String message) throws IOException, InterruptedException {
-    	 System.out.println(userName+"消息："+message);
+    	 String token = (String) httpSession.getAttribute(Constants.SESSION_ATRR_KEY);
+		 Poker poker = UserInfoUtil.getUser(token);
+    	 System.out.println(poker.getNick()+"消息："+message);
     	 if("@heart".equals(message)){
  			return;
  		 }
     	 //当前房间号
-    	 String roomCode = (String) httpSession.getAttribute("roomCode");
+    	 String roomCode = poker.getRoomCode();
     	 
     	 Enumeration<String> enu = sessionMap.keys();
  		 while (enu.hasMoreElements()) {//遍历所有连接
  			String key = (String) enu.nextElement();
  			String roomCodeTemp = (String)sessionMap.get(key).httpSession.getAttribute("roomCode");
  			if(roomCodeTemp.equals(roomCode)){//根据当前发消息人的房间号，发送对应的消息到对应的房间中
- 				sessionMap.get(key).sendMessage(userName+":"+message);
+ 				sessionMap.get(key).sendMessage(poker.getNick()+":"+message);
  			}			
  		}
      }
@@ -69,16 +82,32 @@ public class EndPointServer {
      @OnError
      public void onError(Throwable t) {
          //以下代码省略...
-    	 sessionMap.remove(userName+"-"+session.getId());
-    	 httpSession.setAttribute("readyStatus", false);
+    	 sessionMap.remove(key);
+    	 String token = (String) httpSession.getAttribute(Constants.SESSION_ATRR_KEY);
+		 Poker poker = UserInfoUtil.getUser(token);
+		 poker.setReadyState(false);
+		 try {
+			UserInfoUtil.setUser(token, poker);
+		 } catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		 }
          System.err.println("出错了");
      }
 
      @OnClose
      public void onClose(Session session, CloseReason reason) {
          //以下代码省略...
-    	 sessionMap.remove(userName+"-"+session.getId());
-    	 httpSession.setAttribute("readyStatus", false);
+    	 sessionMap.remove(key);
+    	 String token = (String) httpSession.getAttribute(Constants.SESSION_ATRR_KEY);
+		 Poker poker = UserInfoUtil.getUser(token);
+		 poker.setReadyState(false);
+		 try {
+			UserInfoUtil.setUser(token, poker);
+		 } catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		 }
          System.out.println(session.getId()+"退出链接");
      } 
 

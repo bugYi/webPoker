@@ -55,10 +55,10 @@ public class RoomController {
 		String token = (String) request.getSession().getAttribute(Constants.SESSION_ATRR_KEY);
 		Poker poker = UserInfoUtil.getUser(token);
 		if(null == poker){
-			result.put("msg", "请先登录");
+			result.put("msg", "登录失效");
 			return result;	
 		}
-		list.add(token);
+		list.add(poker.getKey());
 		
 		if(roomMap.isEmpty()){//当没有房间的时候随机创建一个
 			roomCode = ((int) ((Math.random()*9+1)*100000))+"";
@@ -119,15 +119,29 @@ public class RoomController {
 		}
 		
 		if(flag){//找到房间号，则进入房间并跳转连接接页面
-			String userId = (String) request.getSession().getAttribute("webSocketSessionId");
-			if(StringUtils.isEmpty(userId)){
-				result.put("msg", "请先登录");
+			String token = (String) request.getSession().getAttribute(Constants.SESSION_ATRR_KEY);
+			Poker poker = UserInfoUtil.getUser(token);
+			if(null == poker){
+				result.put("msg", "登录失效");
 				return result;	
 			}
 			List<String> list = roomMap.get(roomCode);
-			list.add(userId);
-			roomMap.put(roomCode, list);
-			request.getSession().setAttribute("roomCode", roomCode);
+			list.add(poker.getKey());//玩家key存入房间玩家列表
+			roomMap.put(roomCode, list);//玩家列表存入房间
+			poker.setRoomCode(roomCode);//房间号存入玩家属性
+			try {
+				UserInfoUtil.setUser(token, poker);
+			} catch (Exception e) {
+				//Socket read timed out
+				if(e.getMessage().contains("Socket read timed out") || e.getMessage().contains("timed out") ||
+						e.getMessage().contains("Socket") ||
+						e.getMessage().contains("Connection") || e.getMessage().contains("IO")){
+					result.put("msg", "进入失败，网络异常!请稍后再试!谢谢!");
+				}else{
+					result.put("msg", "进入房间失败!"+e.getMessage());
+				}
+				return result;	
+			}
 			result.put("roomCode", roomCode);
 			return result;	
 		}else{//否则回到输房间号页面

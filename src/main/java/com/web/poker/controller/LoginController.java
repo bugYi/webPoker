@@ -37,20 +37,22 @@ public class LoginController {
 		BaseResult result = new BaseResult();
 		try{
 			HttpSession httpSession = request.getSession();
+			Poker poker = new Poker();
 			
 			//一个手机号码只能登陆一次
 			String oldToken  = UserInfoUtil.getTokenByUserId(telNum);
 			if(StringUtils.isNotBlank(oldToken)){//如果有过登录，注销老token
+				poker = UserInfoUtil.getUser(oldToken);//获取之前的数据重新保存，以确保重连之后数据丢失
 				UserInfoUtil.logout(oldToken);
 			}
-			Poker poker = new Poker();
 			poker.setKey(telNum);
 			poker.setTelNum(telNum);
 			poker.setNick(userName);
 			
 			//根据手机号生成token值
-			String token = TokenUtils.getInstance().generateToken(telNum);
+			String token = TokenUtils.getInstance().generateToken(poker.getKey());
 			UserInfoUtil.setUser(token, poker);//把用户对象缓存到Redis中
+			UserInfoUtil.setTokenByUserId(poker.getKey(), token);
 			
 			//session中存入token值
 			httpSession.setAttribute(Constants.SESSION_ATRR_KEY, token);

@@ -21,6 +21,7 @@ import java.util.List;
 public class Poker {
 	// 身份确认唯一标识
 	private String key;
+	private String sessionId;
 	// 昵称
 	private String nick;
 	// 手机号
@@ -28,7 +29,7 @@ public class Poker {
 	// 房间号
 	private String roomCode;
 	// 准备标识
-	private String readyState;
+	private boolean readyState;
 	// 手牌列表
 	private List<String> pokerList;
 	// 地主权重标识
@@ -43,6 +44,12 @@ public class Poker {
 	}
 	public void setKey(String key) {
 		this.key = key;
+	}
+	public String getSessionId() {
+		return sessionId;
+	}
+	public void setSessionId(String sessionId) {
+		this.sessionId = sessionId;
 	}
 	public String getNick() {
 		return nick;
@@ -62,10 +69,10 @@ public class Poker {
 	public void setRoomCode(String roomCode) {
 		this.roomCode = roomCode;
 	}
-	public String getReadyState() {
+	public boolean getReadyState() {
 		return readyState;
 	}
-	public void setReadyState(String readyState) {
+	public void setReadyState(boolean readyState) {
 		this.readyState = readyState;
 	}
 	public List<String> getPokerList() {
