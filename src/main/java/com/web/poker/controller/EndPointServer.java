@@ -63,16 +63,21 @@ public class EndPointServer {
     	 String token = (String) httpSession.getAttribute(Constants.SESSION_ATRR_KEY);
 		 Poker poker = UserInfoUtil.getUser(token);
     	 System.out.println(poker.getNick()+"消息："+message);
-    	 if("@heart".equals(message)){
+    	 if("@heart".equals(message)){//心跳包消息略过
  			return;
  		 }
+    	 
+    	 //其他消息根据房间号发送到对应的房间中
     	 //当前房间号
     	 String roomCode = poker.getRoomCode();
     	 
+    	 //遍历连接的所有对象
     	 Enumeration<String> enu = sessionMap.keys();
  		 while (enu.hasMoreElements()) {//遍历所有连接
  			String key = (String) enu.nextElement();
- 			String roomCodeTemp = (String)sessionMap.get(key).httpSession.getAttribute("roomCode");
+ 			String tempToken = (String) sessionMap.get(key).httpSession.getAttribute(Constants.SESSION_ATRR_KEY);
+ 			Poker tempPoker = UserInfoUtil.getUser(tempToken);
+ 			String roomCodeTemp = tempPoker.getRoomCode();
  			if(roomCodeTemp.equals(roomCode)){//根据当前发消息人的房间号，发送对应的消息到对应的房间中
  				sessionMap.get(key).sendMessage(poker.getNick()+":"+message);
  			}			

@@ -1,5 +1,6 @@
 package com.web.poker.model;
 
+import java.io.Serializable;
 import java.util.List;
 
 /***
@@ -18,7 +19,11 @@ import java.util.List;
  */
 
 
-public class Poker {
+public class Poker implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 6225176519683608910L;
 	// 身份确认唯一标识
 	private String key;
 	private String sessionId;
