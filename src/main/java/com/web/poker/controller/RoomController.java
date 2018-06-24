@@ -206,7 +206,7 @@ public class RoomController {
         Enumeration<String> enu = EndPointServer.sessionMap.keys();
 		while (enu.hasMoreElements()) {//遍历所有连接
 			String key = (String) enu.nextElement();
-			ids.add(key.split("-")[0]);//前面是名字，后面是sessionID
+			ids.add(key);//key是连接对象的电话
 			//EndPointServer.sessionMap.get(key);
 		}
         
@@ -231,14 +231,7 @@ public class RoomController {
     
     public void sendMsgBySid(String sid,String msg) throws IOException{
     	 if (StringUtils.isNotEmpty(sid)) {//sid不为空，则指定用户发送消息
-         	Enumeration<String> enu = EndPointServer.sessionMap.keys();
-     		while (enu.hasMoreElements()) {//遍历所有连接
-     			String key = (String) enu.nextElement();
-     			String tempSid = EndPointServer.sessionMap.get(key).session.getId();
-     			if(tempSid.equals(sid)){
-     				EndPointServer.sessionMap.get(key).sendMessage(msg);
-     			}
-     		}
+     		EndPointServer.sessionMap.get(sid).sendMessage(msg);
          }else {
          	Enumeration<String> enu = EndPointServer.sessionMap.keys();
      		while (enu.hasMoreElements()) {//遍历所有连接
@@ -268,14 +261,10 @@ public class RoomController {
     
     public void sendMsgByRoom(String roomCode,String msg) throws IOException{
     	if (StringUtils.isNotEmpty(roomCode)) {//roomCode不为空，则指定房间发送消息
-        	Enumeration<String> enu = EndPointServer.sessionMap.keys();
-    		while (enu.hasMoreElements()) {//遍历所有连接
-    			String key = (String) enu.nextElement();
-    			String tempCode = (String) EndPointServer.sessionMap.get(key).httpSession.getAttribute("roomCode");
-    			if(tempCode.equals(roomCode)){
-    				EndPointServer.sessionMap.get(key).sendMessage(msg);
-    			}
-    		}
+        	List<String> list = roomMap.get(roomCode);//取房间中的用户列表
+    		for (String key : list) {
+    			EndPointServer.sessionMap.get(key).sendMessage(msg);
+			}
         }else {
         	Enumeration<String> enu = EndPointServer.sessionMap.keys();
     		while (enu.hasMoreElements()) {//遍历所有连接
@@ -288,10 +277,17 @@ public class RoomController {
     @RequestMapping("/toReady")
     @ResponseBody
     public BaseResult toReady(){
-    	HttpSession httpSession = request.getSession();
-		httpSession.setAttribute("readyStatus", true);
+    	String token = (String) request.getSession().getAttribute(Constants.SESSION_ATRR_KEY);
+		Poker poker = UserInfoUtil.getUser(token);
+		poker.setReadyState(true);
+		try {
+			UserInfoUtil.setUser(token, poker);
+		} catch (Exception e) {
+			//Socket read timed out
+			logger.error(e.getMessage());
+		}
 		
-		String roomCode = (String) httpSession.getAttribute("roomCode");
+		String roomCode = poker.getRoomCode();
 		if(isAllReady(roomCode)){//传入房间号判断是否全部准备好了，如果是，则直接往房间发牌
 			doPlayFull(roomCode);
 		}
@@ -300,19 +296,16 @@ public class RoomController {
     
     public boolean isAllReady(String roomCode){
     	int i = 0;
-    	Enumeration<String> enu = EndPointServer.sessionMap.keys();
-		while (enu.hasMoreElements()) {//遍历所有连接
-			String key = (String) enu.nextElement();
-			String tempCode = (String) EndPointServer.sessionMap.get(key).httpSession.getAttribute("roomCode");
-			if(tempCode.equals(roomCode)){//取出房间里面每个人的准备状态
-				if(EndPointServer.sessionMap.get(key).httpSession.getAttribute("readyStatus") != null){
-					boolean temp = (boolean) EndPointServer.sessionMap.get(key).httpSession.getAttribute("readyStatus");
-					if(temp){//准备好了则+1
-						i++;
-					}
-				}
+    	if (StringUtils.isNotEmpty(roomCode)) {//roomCode不为空
+        	List<String> list = roomMap.get(roomCode);//取房间中的用户列表
+    		for (String key : list) {
+    			String token = UserInfoUtil.getTokenByUserId(key);
+    			Poker poker = UserInfoUtil.getUser(token);
+    			if(poker.getReadyState()){
+    				i++;
+    			}
 			}
-		}
+        }
 		if(i >= 3){//当三个人都准备好了则返回true
 			return true;
 		}else{
@@ -322,16 +315,7 @@ public class RoomController {
     
     
     public List<String> querySidByRoomCode(String roomCode){
-    	List<String> list = new ArrayList<String>();
-    	Enumeration<String> enu = EndPointServer.sessionMap.keys();
-		while (enu.hasMoreElements()) {//遍历所有连接
-			String key = (String) enu.nextElement();
-			String tempCode = (String) EndPointServer.sessionMap.get(key).httpSession.getAttribute("roomCode");
-			if(tempCode.equals(roomCode)){
-				String sid = EndPointServer.sessionMap.get(key).session.getId();
-				list.add(sid);
-			}
-		}
+    	List<String> list = roomMap.get(roomCode);//取房间中的用户列表
 		return list;
     }
     
@@ -343,18 +327,16 @@ public class RoomController {
      * @return
      */
     public List<String> queryNameAndSidByRoomCode(String roomCode){
-    	List<String> list = new ArrayList<String>();
-    	Enumeration<String> enu = EndPointServer.sessionMap.keys();
-		while (enu.hasMoreElements()) {//遍历所有连接
-			String key = (String) enu.nextElement();
-			String tempCode = (String) EndPointServer.sessionMap.get(key).httpSession.getAttribute("roomCode");
-			if(tempCode.equals(roomCode)){
-				String nameAndSid = EndPointServer.sessionMap.get(key).httpSession.getAttribute("webSocketSessionId")
-						+ "," + EndPointServer.sessionMap.get(key).session.getId();
-				list.add(nameAndSid);
-			}
+    	List<String> result = new ArrayList<String>();
+    	List<String> list = roomMap.get(roomCode);//取房间中的用户列表
+    	for (String key : list) {
+			String token = UserInfoUtil.getTokenByUserId(key);
+			Poker poker = UserInfoUtil.getUser(token);
+			String nameAndSid = poker.getNick()	+ "," + poker.getTelNum();
+			result.add(nameAndSid);
 		}
-		return list;
+    	
+		return result;
     }
 
     /**
