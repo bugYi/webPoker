@@ -22,6 +22,6 @@
 
 	
 	
-	
+	<bean id="springFactory" class="com.web.poker.common.utils.SpringFactory" scope="singleton"/>
 	<!-- <import resource="classpath:spring/spring-mybatis.xml" /> -->
 </beans>
